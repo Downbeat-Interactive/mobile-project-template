@@ -10,6 +10,6 @@ public class GameUtil
 
     public static bool IsInLayerMask(int layer, LayerMask mask)
     {
-        return (layer & 1 << layer) == (1 << layer);
+        return (mask.value & 1 << layer) == (1 << layer);
     }
 }
