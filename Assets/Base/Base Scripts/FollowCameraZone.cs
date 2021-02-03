@@ -11,8 +11,6 @@ public class FollowCameraZone : MonoBehaviour
     [SerializeField]
     CinemachineVirtualCamera cam;
     [SerializeField]
-    ObstacleBase obstacle = null;
-    [SerializeField]
     bool setLook = false;
     [SerializeField]
     bool useCustomFOV = false;
@@ -45,11 +43,11 @@ public class FollowCameraZone : MonoBehaviour
     }
 
     void SetTargets() {
-        cam.Follow = Player.Instance.root.transform;
+        cam.Follow = Player.Instance.transform;
         if (setLook)
         {
             if (setLook)
-                cam.LookAt = Player.Instance.root.transform;
+                cam.LookAt = Player.Instance.transform;
         }
     }
     private void OnTriggerEnter(Collider other){
@@ -71,8 +69,6 @@ public class FollowCameraZone : MonoBehaviour
 
     void EnableCam() {
         if (triggered) return;
-        if (obstacle.moveComplete || obstacle.moveBegun)
-        {
             triggered = true;
             if (lastZone != null) {
                 lastZone.GetComponent<Collider>().enabled = false;
@@ -89,10 +85,6 @@ public class FollowCameraZone : MonoBehaviour
                 CustomFOVIn();
            lastCam = cam;
             lastZone = this;
-        }
-        else {
-            StartCoroutine(TryAgain(.1f));
-        }
     }
     void DisableCam() {
         if (!triggered) return;
