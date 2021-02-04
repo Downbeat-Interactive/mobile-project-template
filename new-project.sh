@@ -7,7 +7,8 @@ git clone git@github-DOWNBEAT:Downbeat-Interactive/mobile-project-template.git $
 cd $NAME
 git remote set-url origin git@github-DOWNBEAT:Downbeat-Interactive/$NAME.git
 git remote add upstream git@github-DOWNBEAT:Downbeat-Interactive/mobile-project-template.git
-curl -H "Authorization: token 7ee740375ee23e2ab9f63c5f9b68c9840a9e0cde" --data '{"name":"'$NAME'"}' https://api.github.com/user/repos
+read -r OAUTH < OAUTH.txt 
+curl -H "Authorization: token $OAUTH" --data '{"name":"'$NAME'"}' https://api.github.com/user/repos
 git push -u origin main
 git push --all
 cd $NAME
