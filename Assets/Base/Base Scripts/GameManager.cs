@@ -11,7 +11,6 @@ public class GameManager : MonoBehaviour
     private const string LEVEL_PREF = "level";
     private const string SHOWN_TUT_PREF = "shown-tutorial";
     private const string INTERSTITIAL_FREQ_KEY = "inter-freq";
-
     public delegate void GameStartAction();
     public static event GameStartAction OnStartGame;
 
@@ -28,7 +27,7 @@ public class GameManager : MonoBehaviour
     int attemptsAdFreqDefault = 4;
     int attemptsAdFreq = 4;
     [SerializeField]
-    bool removeAds = false;
+    bool removeAdsInEditor = false;
 
     private static int currentLevel = 1;
     public static int attempts = 0;
@@ -37,8 +36,49 @@ public class GameManager : MonoBehaviour
 
     internal static int currentLevelTier = 0;
 
-    internal static int GetCurrentLevel() {
+
+    [SerializeField]
+    int levelCount = 3;
+    [SerializeField]
+    int minRandomLevel = 3;
+    public static int lastRandom = -1;
+    static bool needsNewRandom = true;
+
+#if UNITY_EDITOR
+    [SerializeField]
+    public bool useTestLevel = false;
+    [SerializeField]
+    public UnityEditor.SceneAsset testScene = null;
+    [SerializeField]
+    bool recordingMode = false;
+#endif
+
+    internal static int GetCurrentLevelWithRepeats()
+    {
+        if (currentLevel > Instance.levelCount)
+        {
+            if (!needsNewRandom && lastRandom > -1) return lastRandom;
+            int output = lastRandom;
+            int tries = 0;
+            do
+            {
+                output = UnityEngine.Random.Range(1, Instance.levelCount + 1);
+                tries++;
+            } while (output == lastRandom || output < Instance.minRandomLevel && tries < 100);
+            needsNewRandom = false;
+            lastRandom = output;
+            return output;
+        }
+        else
+            return currentLevel;
+    }
+    internal static int GetCurrentLevelIndex()
+    {
         return currentLevel;
+    }
+    internal static string GetCurrentLevelForDisplay()
+    {
+        return (currentLevel).ToString();
     }
 
 
@@ -50,8 +90,15 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         DOTween.logBehaviour = LogBehaviour.Verbose;
 
-        if (removeAds)
+        if (removeAdsInEditor)
             AdManager.RemoveForTime(100);
+
+        if (recordingMode)
+        {
+            AudioManager.SetMaxMusicVolume(0);
+            AudioManager.Instance.gameObject.GetComponent<AudioSource>().enabled = false;
+        }
+
 #endif
         if (Instance) Destroy(this.gameObject);
         else Instance = this;
@@ -60,50 +107,58 @@ public class GameManager : MonoBehaviour
 
         if (useOverrideLevel)
             currentLevel = overrideStartingLevel;
-        else 
+        else
             currentLevel = PlayerPrefs.GetInt(LEVEL_PREF, 1);
 
         showTut = PlayerPrefs.GetInt(SHOWN_TUT_PREF, 0) == 0;
 
 
-        attemptsAdFreq= attemptsAdFreqDefault;
+        attemptsAdFreq = attemptsAdFreqDefault;
         try
         {
             attemptsAdFreq = int.Parse(GameAnalytics.GetRemoteConfigsValueAsString(INTERSTITIAL_FREQ_KEY, attemptsAdFreqDefault.ToString()));
         }
-        catch (Exception e) {
+        catch (Exception e)
+        {
         }
 
+        AudioManager.PlayRandomTheme(true);
     }
 
 
-    internal static void StartGame(){
+    internal static void StartGame()
+    {
         isPlaying = true;
-        LevelManager.NewLevel(currentLevel);
+        // LevelManager.NewLevel(currentLevel);
         OnStartGame?.Invoke();
         attempts++;
     }
 
-    internal static void ShownTutorial(){
+    internal static void ShownTutorial()
+    {
         showTut = false;
         PlayerPrefs.SetInt(SHOWN_TUT_PREF, 1);
         PlayerPrefs.Save();
     }
 
-    internal static void SetCurrentLevel(int v){
+    internal static void SetCurrentLevel(int v)
+    {
         NextLevel(v);
     }
 
-    public static void NextLevel( int overrideLvl = -1, bool overrideNoAd = false) {
+    public static void NextLevel(int overrideLvl = -1, bool overrideNoAd = false)
+    {
         if (overrideLvl >= 0)
             currentLevel = overrideLvl;
 
-        bool showAd = !overrideNoAd && ( attempts>0 && attempts % Instance.attemptsAdFreq == 0);
+        bool showAd = !overrideNoAd && (attempts > 0 && attempts % Instance.attemptsAdFreq == 0);
 
-        if (showAd) {
-            InterstitialManager.Show(InterstitialPlacement.BetweenLevels,()=> { LoadAndAdvance(showAd); });
+        if (showAd)
+        {
+            InterstitialManager.Show(InterstitialPlacement.BetweenLevels, () => { LoadAndAdvance(showAd); });
         }
-        else {
+        else
+        {
             LoadAndAdvance(showAd);
         }
 
@@ -111,18 +166,20 @@ public class GameManager : MonoBehaviour
 
     private static void LoadAndAdvance(bool didAd = false)
     {
-        bool needsLoading = true;
+        bool needsLoading = false;
         if (!needsLoading)
         {
-            if(didAd)
+            if (didAd)
                 ScreenFadeController.Instance.FadeInTween();
             isPlaying = true;
-            LevelManager.NewLevel(currentLevel);
+            LevelManager.NewLevel(GetCurrentLevelWithRepeats());
+
         }
 
     }
 
-    public static void ContinueFromSkip() {
+    public static void ContinueFromSkip()
+    {
         Loader.UnloadScene(DefaultScene.Lose);
         isPlaying = false;
         currentLevel++;
@@ -132,19 +189,26 @@ public class GameManager : MonoBehaviour
         LoadAndAdvance(true);
     }
 
-    public static void ContinueFromWinScreen() {
+    public static void ContinueFromWinScreen()
+    {
         Loader.UnloadScene(DefaultScene.Win);
         NextLevel();
         attempts++;
     }
 
-    public static void ContinueFromLoseScreen(){
+    public static void ContinueFromLoseScreen()
+    {
+        Loader.LoadExclusive(DefaultScene.MainMenu);
 
+        //TODO
+        return;
         bool showAd = attempts > 0 && attempts % Instance.attemptsAdFreqDefault == 0;
-        if (showAd){
-            InterstitialManager.Show(InterstitialPlacement.BetweenLevels, ()=>{DoContinue(showAd); });
+        if (showAd)
+        {
+            InterstitialManager.Show(InterstitialPlacement.BetweenLevels, () => { DoContinue(showAd); });
         }
-        else{
+        else
+        {
             DoContinue(showAd);
         }
     }
@@ -157,18 +221,23 @@ public class GameManager : MonoBehaviour
         StartGame();
     }
 
-    public static void WonLevel(){
+    public static void WonLevel()
+    {
         isPlaying = false;
         currentLevel++;
+        needsNewRandom = true;
         GameUI.ShowInGameUI();
-        PlayerPrefs.SetInt(LEVEL_PREF, currentLevel);
+        var p = GameUI.ShowPopup(UnityEngine.Random.Range(0, 1f) < .5f ? "Great!" : "Nice!");
+        p.GetComponent<RectTransform>().anchoredPosition += Vector2.down * 230f;
+        PlayerPrefs.SetInt(LEVEL_PREF, GetCurrentLevelIndex());
         PlayerPrefs.Save();
-        Loader.ImmediateAdditive(DefaultScene.Win);
+
         OnWin?.Invoke();
-
+        Loader.ImmediateAdditive(DefaultScene.Win);
+        AnalyticsManager.LogProgression(GAProgressionStatus.Complete, GetCurrentLevelIndex().ToString(), 0);
     }
-
-    public static void LostLevel(){
+    public static void LostLevel()
+    {
         isPlaying = false;
         GameUI.ShowInGameUI();
         Loader.ImmediateAdditive(DefaultScene.Lose);
@@ -176,7 +245,8 @@ public class GameManager : MonoBehaviour
     }
 
 
-    private void OnApplicationQuit(){
+    private void OnApplicationQuit()
+    {
         AnalyticsManager.LogDesign("num-attempts-this-session", attempts);
     }
 }

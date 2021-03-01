@@ -66,6 +66,11 @@ public class AudioManager : MonoBehaviour
     }
 
     void PlayRandomThemeInternal(bool loop = false, float overrideFade = -1.0f) {
+        if(_themes.Length<=0){
+            Debug.LogWarning("Cannot play random theme, no themes in array");
+            return;
+        }
+
         AudioClip clip = _themes[UnityEngine.Random.Range(0, _themes.Length)];
 
         if(firstLoad)

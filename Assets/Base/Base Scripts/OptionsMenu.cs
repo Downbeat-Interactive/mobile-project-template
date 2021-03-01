@@ -99,11 +99,16 @@ public class OptionsMenu : MonoBehaviour
   
     public void InitUI() {
         // GFX Quality:
-        int qualityIndex = OptionsManager.prevGFXQuality;
-        gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex].isOn = true;
-        gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex].group.RegisterToggle(gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex]);
-        gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex].group.NotifyToggleOn(gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex]);
 
+        // GFX Quality:
+        int qualityIndex = OptionsManager.prevGFXQuality;
+        var toggles = gfxToggleGroup.GetComponentsInChildren<Toggle>();
+        if (toggles.Length > 0 && qualityIndex < toggles.Length)
+        {
+            toggles[qualityIndex].isOn = true;
+            toggles[qualityIndex].group.RegisterToggle(gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex]);
+            toggles[qualityIndex].group.NotifyToggleOn(gfxToggleGroup.GetComponentsInChildren<Toggle>()[qualityIndex]);
+        }
 
         //Audio
         musicSlider.minValue = 0;

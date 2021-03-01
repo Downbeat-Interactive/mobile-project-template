@@ -13,4 +13,17 @@ public class GameUtil
     {
         return (mask.value & 1 << layer) == (1 << layer);
     }
+
+    public static void GetObjectBoundsOnZAxis(GameObject prefab, out float min, out float max)
+    {
+        min = float.PositiveInfinity;
+        max = float.NegativeInfinity;
+        foreach (var child in prefab.GetComponentsInChildren<Renderer>())
+        {
+            if (child.bounds.min.z < min)
+                min = (float)child.bounds.min.z;
+            if (child.bounds.max.z > max)
+                max = (float)child.bounds.max.z;
+        }
+    }
 }

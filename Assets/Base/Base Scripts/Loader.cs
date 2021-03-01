@@ -2,10 +2,12 @@
 using System;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public enum DefaultScene {
+public enum DefaultScene
+{
     Preload, MainMenu, Game, Win, Lose
 }
 
@@ -18,16 +20,34 @@ public class Loader : MonoBehaviour
     public static string LOSE_SCENE = "Lose";
     public static string PRELOAD_SCENE = "Preload";
 
-    private void Init() {
-        PRELOAD_SCENE       = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(0)).Split('.')[0];
-        MAIN_MENU_SCENE     = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(1)).Split('.')[0];
-        WIN_SCENE           = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(2)).Split('.')[0];
-        LOSE_SCENE          = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(3)).Split('.')[0];
-        GAME_SCENE          = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(4)).Split('.')[0];
+    private void Init()
+    {
+        PRELOAD_SCENE = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(0)).Split('.')[0];
+        MAIN_MENU_SCENE = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(1)).Split('.')[0];
+        WIN_SCENE = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(2)).Split('.')[0];
+        LOSE_SCENE = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(3)).Split('.')[0];
+        GAME_SCENE = Path.GetFileName(SceneUtility.GetScenePathByBuildIndex(4)).Split('.')[0];
     }
 
-    static string GetNameFromDefault(DefaultScene scene) {
-        switch (scene){
+    internal static bool IsSceneOpen(string name)
+    {
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            if (SceneManager.GetSceneAt(i).name == name)
+                return true;
+        }
+        return false;
+    }
+
+    internal static bool IsSceneOpen(DefaultScene scene)
+    {
+        return IsSceneOpen(GetNameFromDefault(scene));
+    }
+
+    static string GetNameFromDefault(DefaultScene scene)
+    {
+        switch (scene)
+        {
             case DefaultScene.Preload:
                 return PRELOAD_SCENE;
             case DefaultScene.MainMenu:
@@ -43,44 +63,64 @@ public class Loader : MonoBehaviour
         }
     }
 
-    public static void FadeToScene(string levelName, bool switchActive = false) {
+
+
+
+
+    public static void FadeToScene(string levelName, bool switchActive = false, UnityAction callback = null)
+    {
         ScreenFadeController.Instance.FadeOutTween(.35f).OnComplete(() => {
-            if (switchActive){
+            if (switchActive)
+            {
                 SceneManager.LoadScene(levelName, LoadSceneMode.Single);
                 SceneManager.SetActiveScene(SceneManager.GetSceneByName(levelName));
+                callback?.Invoke();
             }
             else
                 SceneManager.LoadScene(levelName);
         });
     }
 
-    public static void FadeToScene(DefaultScene defaultScene, bool switchActive = false) {
+    public static void FadeToScene(DefaultScene defaultScene, bool switchActive = false, UnityAction callback = null)
+    {
         string name = GetNameFromDefault(defaultScene);
-        if (name.Length > 0){
-            FadeToScene(name, switchActive);
+        if (name.Length > 0)
+        {
+            FadeToScene(name, switchActive, callback);
         }
-        else{
+        else
+        {
             Debug.LogWarningFormat("Trying to load scene {0} failed. Scene does not exist.", name);
         }
     }
 
-    public static void ImmediateAdditive(string levelName) {
+    public static void ImmediateAdditive(string levelName)
+    {
         SceneManager.LoadScene(levelName, LoadSceneMode.Additive);
     }
 
-    public static void ImmediateAdditive(DefaultScene defaultScene) {
+    public static void ImmediateAdditive(DefaultScene defaultScene)
+    {
         string name = GetNameFromDefault(defaultScene);
-        if (name.Length > 0){
+        if (name.Length > 0)
+        {
             SceneManager.LoadScene(name, LoadSceneMode.Additive);
         }
-        else {
+        else
+        {
             Debug.LogWarningFormat("Trying to load scene {0} failed. Scene does not exist.", name);
         }
     }
 
-    public static void LoadSceneBackground(string levelName, Image fader = null, Action doneCallback = null) {
+    public static void LoadSceneBackground(string levelName, Image fader = null, Action doneCallback = null)
+    {
+        if(!SceneManager.GetSceneByName(levelName).IsValid()){
+            Debug.LogWarningFormat("Trying to load scene {0} failed. Scene does not exist.", levelName);
+            return;
+        }
         var op = SceneManager.LoadSceneAsync(levelName, LoadSceneMode.Additive);
-        if (fader) {
+        if (fader)
+        {
             op.completed += (AsyncOperation operation) => {
                 fader.DOFade(0.1f, 1.0f);
                 doneCallback?.Invoke();
@@ -90,21 +130,42 @@ public class Loader : MonoBehaviour
 
     }
 
-    public static void LoadSceneBackground(DefaultScene defaultScene, Image fader = null, Action doneCallback = null){
+    public static void LoadSceneBackground(DefaultScene defaultScene, Image fader = null, Action doneCallback = null)
+    {
         string name = GetNameFromDefault(defaultScene);
-        if (name.Length > 0){
+        if (name.Length > 0)
+        {
             LoadSceneBackground(name, fader, doneCallback);
-        } else{
+        }
+        else
+        {
             Debug.LogWarningFormat("Trying to load scene {0} failed. Scene does not exist.", name);
         }
     }
 
-    private void OnSceneLoad(Scene scene, LoadSceneMode mode) {
-        if (scene.name.Equals(PRELOAD_SCENE)){
+    internal static void LoadExclusive(DefaultScene scene)
+    {
+        string name = GetNameFromDefault(scene);
+        if (name.Length > 0)
+        {
+            SceneManager.LoadScene(name, LoadSceneMode.Single);
+        }
+        else
+        {
+            Debug.LogWarningFormat("Trying to load scene {0} failed. Scene does not exist.", name);
+        }
+    }
+
+    private void OnSceneLoad(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name.Equals(PRELOAD_SCENE))
+        {
             // If this is the first load, load the main menu
             Init();
             SceneManager.LoadScene(MAIN_MENU_SCENE);
-        } else {
+        }
+        else
+        {
             ScreenFadeController.Instance.FadeInTween();
             GameManager.isPlaying = false;
         }
@@ -113,24 +174,31 @@ public class Loader : MonoBehaviour
             GameUI.HideInGameUI();
     }
 
-    public static void UnloadScene(string name) {
+    public static void UnloadScene(string name)
+    {
         SceneManager.UnloadSceneAsync(name);
     }
 
-    public static void UnloadScene(DefaultScene defaultScene) {
+    public static void UnloadScene(DefaultScene defaultScene)
+    {
         string name = GetNameFromDefault(defaultScene);
-        if (name.Length > 0) {
+        if (name.Length > 0)
+        {
             SceneManager.UnloadSceneAsync(name);
-        } else{
+        }
+        else
+        {
             Debug.LogWarningFormat("Trying to unload scene {0} failed. Scene does not exist.", name);
         }
 
     }
 
-    private void OnEnable() {
+    private void OnEnable()
+    {
         SceneManager.sceneLoaded += OnSceneLoad;
     }
-    private void OnDisable() {
+    private void OnDisable()
+    {
         SceneManager.sceneLoaded -= OnSceneLoad;
     }
 
